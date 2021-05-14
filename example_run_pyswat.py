@@ -22,8 +22,3 @@ model.resultFile_toSQL(output="swat_db.sqlite", fetch_tables=['mgt'])
 # table, original_table = model.getParHru()
 # print(table)
 # print(original_table)
-
-
-
-
-

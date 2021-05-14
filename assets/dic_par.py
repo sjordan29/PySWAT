@@ -175,9 +175,9 @@ class Parameters:
             #RCH VARIABLES
            'RCH ':'NUMERIC',
            'GIS' :'NUMERIC',
-           'MO' :'NUMERIC',
-           'DA' :'NUMERIC',
-           'YR'  :'NUMERIC',
+           'MO': 'NUMERIC',
+           'DA': 'NUMERIC',
+           'YR': 'NUMERIC',
            'AREAkm2' :'NUMERIC',
            'FLOW_INcms':'NUMERIC',
            'FLOW_OUTcms':'NUMERIC',
@@ -232,9 +232,9 @@ class Parameters:
         #SUB VARIABLES
             'SUB':'NUMERIC',
             'GIS':'NUMERIC',
-            'MO':'NUMERIC',
-            'DA':'NUMERIC',
-            'YR':'NUMERIC',
+            'MO': 'NUMERIC',
+            'DA': 'NUMERIC',
+            'YR': 'NUMERIC',
             'AREAkm2':'NUMERIC', 
             'PRECIPmm':'NUMERIC', 
             'SNOMELTmm':'NUMERIC',
@@ -261,6 +261,57 @@ class Parameters:
             'QTILEmm':'NUMERIC', 
             'TVAPkg/ha':'NUMERIC'
         }
+
+        ## SJ added .res
+        elif filetype == 'rsv':
+            self.relParameterDBType = {
+            #RSV VARIABLES
+            'RES':'NUMERIC',
+            'MON':'NUMERIC',
+            'DA':'NUMERIC',
+            'YR':'NUMERIC',
+            'VOLUMEm3':'NUMERIC', 
+            'FLOW_INcms':'NUMERIC', 
+            'FLOW_OUTcms':'NUMERIC',
+            'PRECIPm3':'NUMERIC',
+            'EVAPm3':'NUMERIC',
+            'SEEPAGEm3':'NUMERIC', 
+            'SED_INtons':'NUMERIC', 
+            'SED_OUTtons':'NUMERIC',  
+            'SED_CONCppm':'NUMERIC',  
+            'ORGN_INkg':'NUMERIC', 
+            'ORGN_OUTkg':'NUMERIC',
+            'RES_ORGNppm':'NUMERIC',
+            'ORGP_INkg':'NUMERIC',
+            'ORGP_OUTkg':'NUMERIC',
+            'RES_ORGPppm':'NUMERIC',
+            'NO3_INkg':'NUMERIC',
+            'NO3_OUTkg':'NUMERIC',
+            'RES_NO3ppm':'NUMERIC',
+            'NO2_INkg':'NUMERIC',
+            'NO2_OUTkg':'NUMERIC', 
+            'RES_NO2ppm':'NUMERIC', 
+            'NH3_INkg':'NUMERIC', 
+            'NH3_OUTkg':'NUMERIC',  
+            'RES_NH3ppm':'NUMERIC', 
+            'MINP_INkg':'NUMERIC',
+            'MINP_OUTkg':'NUMERIC',
+            'RES_MINPppm':'NUMERIC',
+            'CHLA_INkg':'NUMERIC',
+            'CHLA_OUTkg':'NUMERIC',
+            'SECCHIDEPTHm':'NUMERIC', 
+            'PEST_INmg':'NUMERIC', 
+            'REACTPSTmg':'NUMERIC', 
+            'VOLPSTmg':'NUMERIC',  
+            'SETTLPSTmg':'NUMERIC', 
+            'RESUSP_PSTmg':'NUMERIC',
+            'DIFFUSEPSTmg':'NUMERIC', 
+            'REACBEDPSTmg':'NUMERIC',
+            'BURYPSTmg':'NUMERIC',
+            'PEST_OUTmg':'NUMERIC',
+            'PSTCNCWmg/m3':'NUMERIC',
+            'PSTCNCBmg/m3':'NUMERIC'
+            }        
 
     def returnVariableDBType(self,key):
         return self.relParameterDBType[key]

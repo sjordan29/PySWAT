@@ -9,6 +9,14 @@ version:0.5
 
 Author: David Bispo Ferreira - Federal University of Parana
 davidbispo@hotmail.com
+
+Updates by Sarah Jordan
+Hydroinformatics - Final Project
+Spring 2021
+Changes:
+*Added scenario for Julian date format
+*Can process output.rsv 
+*expressResults function
 """
 
 class connect:
@@ -107,16 +115,245 @@ class connect:
         else:
             print("Failed to remove SWAT executable from folder. Please remove it Manually and verify folder permisssions")
         print('Run Succesful!')
+        
+     
+        
+    def expressResults(self, startDate, endDate, id_no, variable, julian=False, fetch_tables='rch', freq='d'):
+        
+        """
+        Creates a dataframe of a given variable and feature ID, or a list of variables/feature IDs
+        If multiple feature IDs and variables, output is a dictinary of dataframes
+            with a keys of ID numbers.
 
+        Inputs:
+        *startDate -> start date of simulation (excluding warm up period)
+        *endDate -> end date of simulation
+        *id_no -> list of feature IDs of interest 
+        *variable -> find possible values from Chapter 32 of SWAT Users Manual, 
+                     capitalization and special characters consistent 
+        *fetch_tables -> What output files to process. Can be a string only.
+        *Acceptable values -> 'hru', 'sub', 'rch', 'rsv',
+        *Default value -> '.rch'
+        """
 
-    def resultFile_toSQL(self, output="swat_db.sqlite", fetch_tables=['hru','rch']):
+        import os
+        import sys
+        import pandas as pd
+        sys.path.insert(1,os.path.join(os.path.dirname(os.path.abspath(__file__))))#Add dic_par folder to path list
+        from assets import dic_par #This method calls the parameter SQLITE types for input
+        from timeit import default_timer as timer
+        # start = time.time()
+        start = timer()
+        
+        dic_output_files = {
+        'hru': 'output.hru',
+        'sub': 'output.sub',
+        'rch': 'output.rch',
+        'rsv': 'output.rsv' # add reservoir 
+        }
+        
+        def variableWarning(variable, variable_ls):
+        	'''
+        	Checks if the variable(s) entered by the user are valid
+        	Displays a list of valid(s) for the given output file 
+        	and exits the program if the user has entered an invalid variable 
+        	'''
+            if variable not in variable_ls:
+                print("Variable not found. Try a variable in the following list:")
+                print(variable_ls)
+                sys.exit()
+        
+        def getVariablesInFile(self,filename,tableName, julian):
+            """
+            Fetches whatever variables in file header. Compares with the known
+            values and returns a list with them. Prevents NOT-SPACED variables
+            in the SWAT output. It uses a parser at the make table and insertDataToTable
+            scripts to fix the queries
+            """
+            instance = dic_par.Parameters(tableName)
+            variables_in_file = []
+            with open(filename) as infile:
+
+                for line in infile:
+                    if 'GIS ' in line:
+                        variablesInFile = line
+                        break
+                    elif 'RES  MON' in line:
+                        variablesInFile = line
+                        break 
+                for item in instance.relParameterDBType:
+                    if item in variablesInFile:
+                        variables_in_file.append(item)
+                    else:
+                        pass
+                if julian == True:
+                    try:
+                        if tableName == 'hru':
+                            variables_in_file.remove('DA') # DA is in hru file from another 
+                    except:
+                        pass 
+            infile.close()
+            return variables_in_file
+        
+        def separateAreaMon(ls, index_val):
+        	'''
+        	Separates the MON and AREA information, which are not separated by a space
+        	with the Julian date output. 
+        	Required for the hru and subbasin output files if Julian = True. 
+        	'''
+            ls.insert(index_val+1, "." + ls[index_val].split('.')[1]) # area 
+            ls[index_val] = ls[index_val].split('.')[0] # mon
+            return ls
+        
+     
+        
+        def createTimeseries(all_vals, variable, dates, i):
+        		'''
+        		converts the extracted information of interest to a Pandas dataframe
+        		'''
+
+                df = pd.DataFrame()
+                ts_dict = {i : [] for i in variable}
+                for v in variable:
+                    for item in all_vals:
+                        try:
+                            ts_dict[v].append(float(item[i[v]]))
+                        except:
+                            ts_dict[v].append(item[i[v]])
+                for item in ts_dict:
+                  df[item] = ts_dict[item] 
+                # df = pd.DataFrame({variable:ts}, index=dates)
+                df.index = dates
+                return df 
+       
+            
+        #Verifies the validity of list or string argument
+        if type(fetch_tables) != str:
+            print("""For express function, you can only enter a single
+                  extension. Please enter just one of the following 
+                  as a string: \n .hru \n .sub \n .rch \n .rsv""")
+            print("Program terminated.")
+            sys.exit()
+
+        elif type(fetch_tables) == str:
+            if fetch_tables in dic_output_files.keys():
+                pass
+            else:
+                print("""You Have wrong keys on the fetch_table
+                      argument. Correct that to continue.
+                      Wrong Key: %s""" %(fetch_tables))
+                print("Program Terminated")
+                sys.exit()
+        
+         
+        if type(id_no) != list:
+            id_no = [id_no]
+                    
+        variablesInFile  = getVariablesInFile(self, filename = os.path.join(self.TxtInOut,
+                                            'output.%s' %(fetch_tables)), tableName=fetch_tables,
+                                            julian = julian)
+        
+        # Turn to list 
+        if type(variable) != list:
+            variable = [variable]
+    
+        # Initialize empty array
+        val_dict = {i : [] for i in id_no}
+
+        # Find variables included in output file 
+        vbs = variablesInFile 
+        
+        # Check if variable in array
+        for v in variable:
+            variableWarning(v, vbs)
+        index_dict = {i: vbs.index(i) for i in variable}
+            
+        # Dates
+        dates = pd.date_range(startDate, endDate, freq=freq) 
+        
+        # filename
+        filename = os.path.join(self.TxtInOut, 'output.%s' %(fetch_tables))
+        
+    	# Future work could assign the spaces to read to a dictionary
+    	# This would mean we wouldn't need all these if/else statements
+        with open(filename, 'r') as f:
+            for line in f:
+                # Pull all lines from given ID 
+                if fetch_tables == 'hru':
+                    try:
+                        if int(line[5:9]) in id_no:
+                            # vals.append(line)
+                            val_dict[int(line[5:9])].append(line)
+                    except:
+                        pass 
+                elif fetch_tables == 'rch':
+                    try:
+                        if int(line[9:13]) in id_no:
+                            # vals.append(line)
+                            val_dict[int(line[9:13])].append(line)
+                            
+                    except:
+                        pass
+                elif fetch_tables == 'sub':
+                    try:
+                        if int(line[8:12]) in id_no:
+                            # vals.append(line)
+                            val_dict[int(line[8:12])].append(line)
+                    except:
+                        pass  
+                elif fetch_tables == 'rsv':
+                    try:
+                        if int(line[12:14]) in id_no:
+                            # vals.append(line)
+                            val_dict[int(line[12:14])].append(line)
+                    except:
+                        pass  
+        
+        # Split each line on the white space
+        # Divide MON and AREA, which are not separated by a space 
+        # splitted = [f.split() for f in vals]
+        splitted = {}
+        for key in val_dict:
+            splitted[key] = [f.split() for f in val_dict[key]]        
+            if splitted[key][0][0] == 'REACH' or splitted[key][0][0] == 'BIGSUB':
+                splitted[key] = [f[1:] for f in splitted[key]]
+            elif splitted[key][0][0] == 'RES':
+                splitted[key] = [f[1:-1] for f in splitted[key]]
+        
+        if fetch_tables == 'hru':
+            for item in splitted:
+                if julian == True:
+                    splitted[item] = [separateAreaMon(f, 5) for f in splitted[item]]
+        elif fetch_tables == 'sub':
+            for item in splitted:
+                if julian == True:
+                    splitted[item] = [separateAreaMon(f, 2) for f in splitted[item]]
+            
+        # Create a timeseries 
+        df_ls = {}
+        for item in splitted:
+            df_ls[item] = createTimeseries(splitted[item], variable, dates, index_dict)
+        
+        end = timer()
+        timelength = end - start
+        print("\nData into dataframe in \n Time: %.3f seconds "%(timelength))
+        if len(df_ls) == 1:
+            return df_ls[id_no[0]], timelength
+        else:
+            return df_ls, timelength 
+        
+        
+
+        
+        
+    # add dates and julian 
+    def resultFile_toSQL(self, startDate, endDate, julian=False, output="swat_db.sqlite", fetch_tables=['hru','rch'], freq='d'):
         """
         Creates a sqlite table in the same folder as TXTInOut
         :output => Output name for the database - Must end with .ssqlite,db3, or other SQLite extensions
         *Default -> swat_db.sqlite
         :fetch_tables => What tables should be fetched. Can be a string or a list with strings(e.g.: ['hru','rch'])
-        *Acceptable values -> 'hru', 'sub', 'rch', 'all'
-        *Default -> 'all'
+        *Acceptable values -> 'hru', 'sub', 'rch', 'rsv', 'all'
         """
         import os
         import sys
@@ -129,6 +366,7 @@ class connect:
         'sub': 'output.sub',
         'rch': 'output.rch',
         'mgt': 'output.mgt',
+        'rsv': 'output.rsv' # add reservoir 
         }
 
         def countLines(self,filename):
@@ -177,7 +415,7 @@ class connect:
             conn.close()
             print("Done!")
 
-        def getVariablesInFile(self,filename,tableName):
+        def getVariablesInFile(self,filename,tableName, julian):
             """
             Fetches whatever variables in file header. Compares with the known
             values and returns a list with them. Prevents NOT-SPACED variables
@@ -192,11 +430,33 @@ class connect:
                     if 'GIS ' in line:
                         variablesInFile = line
                         break
+                    elif 'RES  MON' in line:
+                        variablesInFile = line
+                        break 
                 for item in instance.relParameterDBType:
                     if item in variablesInFile:
                         variables_in_file.append(item)
                     else:
                         pass
+                
+                #SJ Added
+                # Can run SWAT either with Julian day printed or Month, Day, Year
+                if julian == True:
+                    try:
+                        if tableName == 'hru':
+                            variables_in_file.remove('DA') # DA is in hru file from another 
+                            variables_in_file.insert(5, "DA")
+                            variables_in_file.insert(6, "YR")
+                        # SJ added
+                        elif tableName == 'sub' or tableName=='rch':
+                            variables_in_file.insert(3, "DA")
+                            variables_in_file.insert(4, "YR")
+                        elif tableName == 'rsv':
+                            variables_in_file.insert(2, "DA")
+                            variables_in_file.insert(3, "YR")
+                    except ValueError:
+                        pass 
+               
             infile.close()
             return variables_in_file
 
@@ -243,8 +503,17 @@ class connect:
                 string = string[0:-1]
             return string
 
-        def insertDataToDB(self, variablesInFile,filename, tableName):
+
+        ## SJ
+        def separateAreaMon(ls, index_val):
+            ls.insert(index_val+1, "." + ls[index_val].split('.')[1]) # area 
+            ls[index_val] = ls[index_val].split('.')[0] # mon
+            return ls
+
+        def insertDataToDB(self, variablesInFile,filename, tableName, startDate, endDate, freq):
             import time
+            import pandas as pd
+            import numpy as np
             """
             Inserts values from text file to the Database
             """
@@ -273,12 +542,43 @@ class connect:
                 print("\nStarting Insert to DB...It may take a long time...")
                 print("***PLEASE DO NOT EXIT THE PROCESS*** \n \n")
 
-                for line in infile:
+                # SJ added dates
+                dates = pd.date_range(startDate, endDate, freq=freq)
+                dates = np.repeat(dates, (nlines - 9) / len(dates))
+                
+                for line,d in zip(infile,dates):
 
                     splitted = line.split()
+                    
+                    if julian == True:
+                    # SJ updates 
+                        if tableName == 'hru':
+                            splitted = separateAreaMon(splitted, 5)
+    
+                        # SJ updates 
+                        elif tableName == 'sub':
+                            splitted = separateAreaMon(splitted, 3)
+                        if tableName == 'hru':
+                            splitted[5] = d.month
+                            splitted.insert(6, d.day)
+                            splitted.insert(7, d.year)
+                        # SJ updates 
+                        elif (tableName == 'sub') | (tableName == 'rch'):
+                            splitted[3] = d.month
+                            splitted.insert(4, d.day)
+                            splitted.insert(5, d.year)
+                        elif tableName == 'rsv':
+                            splitted[2] = d.month
+                            splitted.insert(3, d.day)
+                            splitted.insert(4, d.year)
+                        
+                        
+        
 
                     if splitted[0] == 'REACH' or splitted[0] == 'BIGSUB':
                         splitted = splitted[1:]
+                    elif splitted[0] == 'RES':
+                        splitted = splitted[1:-1]
                     #Replacers for names not accepted by SQLITE -> INSERT***
                     composed_variablesInFile = composed_variablesInFile.replace('#','_')
                     composed_variablesInFile = composed_variablesInFile.replace('TOT Nkg','TOT_Nkg')
@@ -344,14 +644,17 @@ class connect:
         if type(fetch_tables) == list:
             for item in fetch_tables:
                 variablesInFile  = getVariablesInFile(self, filename = os.path.join(self.TxtInOut,
-                                   'output.%s' %(item)), tableName=item)
+                                   'output.%s' %(item)), tableName=item,julian=julian)
 
                 print("Setting data on table " + item)
                 makeTable(self,variablesInFile,item)
                 #print("Counting Lines...")
                 insertDataToDB(self,variablesInFile = variablesInFile,
                                filename = output,
-                               tableName = item)
+                               tableName = item,
+                               startDate = startDate, # SJ added these lines 
+                               endDate = endDate,
+                               freq=freq)
         else:
             print("Setting data on table " + fetch_tables)
             variablesInFile  = getVariablesInFile(output)
@@ -385,7 +688,14 @@ class connect:
             if pandas_output == True:
                 import pandas as pd
                 results = pd.DataFrame(results,columns=header)
-                results.set_index("id", inplace=True)
+                # SJ adds a date column 
+                print(results.YEAR)
+                try:
+                    cols=["YR","MO","DA"]
+                    results['date'] = results[cols].apply(lambda x: '-'.join(x.values.astype(str)), axis="columns")
+                    results.index = pd.to_datetime(results['date'])
+                except:
+                    results.set_index("id", inplace=True)
                 return results
             else:
                 results.insert(0,tuple(header))
